@@ -15,12 +15,76 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define _POSIX_SOURCE 1
+#define _BSD_SOURCE 1
+#define _SVID_SOURCE 1
+#include <stdio.h>
+
 #include "module.h"
 #include "signals.h"
+#include "settings.h"
 
 #include "xmpp-servers.h"
 #include "rosters-tools.h"
 #include "tools.h"
+
+char *pgp_passwd = NULL;
+
+char *call_gpg(char *keyid, char *switches, char *input) {
+	int pipefd[2], tmp_fd, in_data = 0;
+	FILE *cstream;
+	char *cmd, *tmp_path, *output = NULL;
+	size_t output_size = 0;
+	char buf[100], buf2[100] = "";
+
+	if(pipe(pipefd)) goto pgp_error;
+	if(!pgp_passwd) pgp_passwd = get_password("OpenPGP Password:");
+
+	if(write(pipefd[1], pgp_passwd, strlen(pgp_passwd)) < 1) goto pgp_error;
+	if(close(pipefd[1])) goto pgp_error;
+
+	if(!(tmp_path = tempnam(NULL, "irssi-xmpp-gpg"))) goto pgp_error;
+	if((tmp_fd = open(tmp_path, O_WRONLY|O_CREAT|O_EXCL, \
+		 S_IRUSR|S_IWUSR)) < 0)
+		goto pgp_error;
+
+	if(write(tmp_fd, input, strlen(input)) < 0) goto pgp_error;
+
+	cmd = malloc(sizeof("gpg -u '' -qo - --no-tty --passphrase-fd '' ''") \
+					 +strlen(switches)+6+strlen(tmp_path));
+	sprintf(cmd, "gpg -u '%s' %s -qo - --no-tty --passphrase-fd '%d' '%s'", \
+			  keyid, switches, pipefd[0], tmp_path);
+	fflush(NULL);
+	cstream = popen(cmd, "r");
+
+	while(fgets(buf, sizeof(buf)-1, cstream)) {
+		if(strlen(buf2) > 0) {
+			output = realloc(output, output_size+strlen(buf2)+1);
+			if(!output) goto pgp_error;
+			if(output_size < 1) output[0] = '\0';
+			output_size += strlen(buf2);
+			strcat(output, buf2);
+		}
+
+		if(!in_data && buf[0] == '\n') {
+			in_data = 1;
+			continue;
+		} else if(in_data) {
+			strcpy(buf2, buf);
+		}
+	}
+
+	pclose(cstream); /* TODO: check exit code */
+
+	close(tmp_fd);
+	close(pipefd[0]);
+	free(tmp_path);
+	free(cmd);
+
+	return output;
+pgp_error:
+	return NULL;
+}
 
 static void
 sig_set_presence(XMPP_SERVER_REC *server, const int show, const char *status,
@@ -28,6 +92,7 @@ sig_set_presence(XMPP_SERVER_REC *server, const int show, const char *status,
 {
 	LmMessage *lmsg;
 	char *str;
+	const char *pgp_keyid;
 
 	g_return_if_fail(IS_XMPP_SERVER(server));
 	if (!xmpp_presence_changed(show, server->show, status,
@@ -35,23 +100,42 @@ sig_set_presence(XMPP_SERVER_REC *server, const int show, const char *status,
 		signal_stop();
 		return;
 	}
+
+	lmsg = lm_message_new(NULL, LM_MESSAGE_TYPE_PRESENCE);
 	server->show = show;
-	g_free(server->away_reason);
-	server->away_reason = g_strdup(status);
+
 	if (!xmpp_priority_out_of_bound(priority))
 		server->priority = priority;
-	lmsg = lm_message_new(NULL, LM_MESSAGE_TYPE_PRESENCE);
+
 	if (show != XMPP_PRESENCE_AVAILABLE)
 		lm_message_node_add_child(lmsg->node, "show",
 		    xmpp_presence_show[server->show]);
-	if (status != NULL) {
-		str = xmpp_recode_out(server->away_reason);
-		lm_message_node_add_child(lmsg->node, "status", str);
-		g_free(str);
+
+	if(server->away_reason) g_free(server->away_reason);
+	server->away_reason = NULL;
+
+	if(!status) status = "";
+	server->away_reason = g_strdup(status);
+	str = xmpp_recode_out(server->away_reason);
+	lm_message_node_add_child(lmsg->node, "status", str);
+	if(!str) str = g_strdup("");
+
+	if((pgp_keyid = settings_get_str("xmpp_pgp"))) {
+		LmMessageNode *x;
+		char *signature = call_gpg(pgp_keyid, "-ab", str);
+
+		x = lm_message_node_add_child(lmsg->node, "x", signature);
+		lm_message_node_set_attribute(x, "xmlns", "jabber:x:signed");
+
+		free(signature);
 	}
+
+	g_free(str);
+
 	str = g_strdup_printf("%d", server->priority);
 	lm_message_node_add_child(lmsg->node, "priority", str);
 	g_free(str);
+
 	signal_emit("xmpp send presence", 2, server, lmsg);
 	lm_message_unref(lmsg);
 	if (show != XMPP_PRESENCE_AVAILABLE) /* away */

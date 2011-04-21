@@ -13,4 +13,6 @@ typedef struct _MUC_REC MUC_REC;
 #define IRSSI_XMPP_PACKAGE "irssi-xmpp"
 #define IRSSI_XMPP_VERSION "0.52"
 
+extern char *pgp_passwd;
+
 #endif
