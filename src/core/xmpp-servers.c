@@ -506,22 +506,14 @@ err:
 static void
 sig_connected(XMPP_SERVER_REC *server)
 {
-	LmMessage *lmsg;
-	char *str;
-
 	if (!IS_XMPP_SERVER(server) || (server->connrec->reconnection
 	    && xmpp_presence_changed(server->connrec->show, server->show,
 	    server->connrec->away_reason, server->away_reason,
 	    server->connrec->priority, server->priority)))
 		return;
+
 	/* set presence available */
-	lmsg = lm_message_new_with_sub_type(NULL, LM_MESSAGE_TYPE_PRESENCE,
-	    LM_MESSAGE_SUB_TYPE_AVAILABLE);
-	str = g_strdup_printf("%d", server->priority);
-	lm_message_node_add_child(lmsg->node, "priority", str);
-	g_free(str);
-	signal_emit("xmpp send presence", 2, server, lmsg);
-	lm_message_unref(lmsg);
+	signal_emit("xmpp set presence", 4, server, XMPP_PRESENCE_AVAILABLE, "", server->priority);
 }
 
 static void
