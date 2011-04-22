@@ -15,17 +15,112 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define _POSIX_SOURCE 1
+#define _BSD_SOURCE 1
+#define _SVID_SOURCE 1
+#include <stdio.h>
+
 #include <string.h>
 
 #include "module.h"
 #include "recode.h"
 #include "settings.h"
 #include "signals.h"
+#include "xmpp-servers.h"
 
 #define XMPP_PRIORITY_MIN -128
 #define XMPP_PRIORITY_MAX 127
 
 static const char *utf8_charset = "UTF-8";
+
+char *call_gpg(char *switches, char *input, char *input2, int in_data) {
+	int pipefd[2], tmp_fd, tmp2_fd = 0;
+	FILE *cstream;
+	char *cmd, *tmp_path, *tmp2_path = NULL, *output = NULL;
+	size_t output_size = 0;
+	char buf[100], buf2[100] = "";
+	const char *keyid = settings_get_str("xmpp_pgp");
+
+	if(keyid) { /* If no keyID, then we don't need a password */
+		if(pipe(pipefd)) goto pgp_error;
+		if(!pgp_passwd) pgp_passwd = get_password("OpenPGP Password:");
+
+		if(write(pipefd[1], pgp_passwd, strlen(pgp_passwd)) < 1) goto pgp_error;
+		if(close(pipefd[1])) goto pgp_error;
+	}
+
+	if(!(tmp_path = tempnam(NULL, "irssi-xmpp-gpg"))) goto pgp_error;
+	if((tmp_fd = open(tmp_path, O_WRONLY|O_CREAT|O_EXCL, \
+		 S_IRUSR|S_IWUSR)) < 0)
+		goto pgp_error;
+
+	if(write(tmp_fd, input, strlen(input)) < 0) goto pgp_error;
+
+	if(input2) {
+		if(!(tmp2_path = tempnam(NULL, "irssi-xmpp-gpg"))) goto pgp_error;
+		if((tmp2_fd = open(tmp2_path, O_WRONLY|O_CREAT|O_EXCL, \
+			 S_IRUSR|S_IWUSR)) < 0)
+			goto pgp_error;
+
+		if(write(tmp2_fd, input2, strlen(input2)) < 0) goto pgp_error;
+	}
+
+	cmd = malloc(sizeof("gpg -u '' --passphrase-fd '' -qo - --batch --no-tty '' '' 2>&1") \
+	              +strlen(switches)+8+strlen(tmp_path)+ \
+	              (tmp2_path ? strlen(tmp2_path) : 0));
+	if(keyid) {
+		sprintf(cmd, "gpg -u '%s' --passphrase-fd '%d' ", keyid, pipefd[0]);
+	} else {
+		strcpy(cmd, "gpg ");
+	}
+	strcat(cmd, switches);
+	strcat(cmd, " -qo - --batch --no-tty '");
+	strcat(cmd, tmp_path);
+	strcat(cmd, "' ");
+
+	if(tmp2_path) {
+		strcat(cmd, "'");
+		strcat(cmd, tmp2_path);
+		strcat(cmd, "'");
+	}
+
+	strcat(cmd, " 2>&1");
+
+	fflush(NULL);
+	cstream = popen(cmd, "r");
+
+	while(fgets(buf, sizeof(buf)-1, cstream)) {
+		if(strlen(buf2) > 0) {
+			output = realloc(output, output_size+strlen(buf2)+1);
+			if(!output) goto pgp_error;
+			if(output_size < 1) output[0] = '\0';
+			output_size += strlen(buf2);
+			strcat(output, buf2);
+		}
+
+		if(!in_data && buf[0] == '\n') {
+			in_data = 1;
+			continue;
+		} else if(in_data) {
+			strcpy(buf2, buf);
+		}
+	}
+
+	pclose(cstream); /* TODO: check exit code */
+
+	close(tmp_fd);
+	free(tmp_path);
+	if(tmp2_fd)   close(tmp2_fd);
+	if(tmp2_path) free(tmp2_path);
+	if(keyid)     close(pipefd[0]);
+	free(cmd);
+
+	return output;
+pgp_error:
+	return NULL;
+}
+
+
 
 static gboolean
 xmpp_get_local_charset(G_CONST_RETURN char **charset)

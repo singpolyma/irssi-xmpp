@@ -15,11 +15,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#define _POSIX_SOURCE 1
-#define _BSD_SOURCE 1
-#define _SVID_SOURCE 1
-#include <stdio.h>
-
 #include "module.h"
 #include "signals.h"
 #include "settings.h"
@@ -29,62 +24,6 @@
 #include "tools.h"
 
 char *pgp_passwd = NULL;
-
-char *call_gpg(char *keyid, char *switches, char *input) {
-	int pipefd[2], tmp_fd, in_data = 0;
-	FILE *cstream;
-	char *cmd, *tmp_path, *output = NULL;
-	size_t output_size = 0;
-	char buf[100], buf2[100] = "";
-
-	if(pipe(pipefd)) goto pgp_error;
-	if(!pgp_passwd) pgp_passwd = get_password("OpenPGP Password:");
-
-	if(write(pipefd[1], pgp_passwd, strlen(pgp_passwd)) < 1) goto pgp_error;
-	if(close(pipefd[1])) goto pgp_error;
-
-	if(!(tmp_path = tempnam(NULL, "irssi-xmpp-gpg"))) goto pgp_error;
-	if((tmp_fd = open(tmp_path, O_WRONLY|O_CREAT|O_EXCL, \
-		 S_IRUSR|S_IWUSR)) < 0)
-		goto pgp_error;
-
-	if(write(tmp_fd, input, strlen(input)) < 0) goto pgp_error;
-
-	cmd = malloc(sizeof("gpg -u '' -qo - --no-tty --passphrase-fd '' ''") \
-					 +strlen(switches)+6+strlen(tmp_path));
-	sprintf(cmd, "gpg -u '%s' %s -qo - --no-tty --passphrase-fd '%d' '%s'", \
-			  keyid, switches, pipefd[0], tmp_path);
-	fflush(NULL);
-	cstream = popen(cmd, "r");
-
-	while(fgets(buf, sizeof(buf)-1, cstream)) {
-		if(strlen(buf2) > 0) {
-			output = realloc(output, output_size+strlen(buf2)+1);
-			if(!output) goto pgp_error;
-			if(output_size < 1) output[0] = '\0';
-			output_size += strlen(buf2);
-			strcat(output, buf2);
-		}
-
-		if(!in_data && buf[0] == '\n') {
-			in_data = 1;
-			continue;
-		} else if(in_data) {
-			strcpy(buf2, buf);
-		}
-	}
-
-	pclose(cstream); /* TODO: check exit code */
-
-	close(tmp_fd);
-	close(pipefd[0]);
-	free(tmp_path);
-	free(cmd);
-
-	return output;
-pgp_error:
-	return NULL;
-}
 
 static void
 sig_set_presence(XMPP_SERVER_REC *server, const int show, const char *status,
@@ -122,7 +61,7 @@ sig_set_presence(XMPP_SERVER_REC *server, const int show, const char *status,
 
 	if((pgp_keyid = settings_get_str("xmpp_pgp"))) {
 		LmMessageNode *x;
-		char *signature = call_gpg(pgp_keyid, "-ab", str);
+		char *signature = call_gpg("-ab", str, NULL, 0);
 
 		x = lm_message_node_add_child(lmsg->node, "x", signature);
 		lm_message_node_set_attribute(x, "xmlns", "jabber:x:signed");
