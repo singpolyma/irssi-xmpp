@@ -26,10 +26,11 @@ FORMAT_REC fecommon_xmpp_formats[] = {
 
 	{ "format_name", "{nick $0} {nickhost $1}", 2, { 0, 0 } },
 	{ "format_jid", "{nick $0}", 1, { 0 } },
-	{ "format_resource", "{comment $0{hilight $1}($2)$3}", 4, { 0, 0, 0, 0 } },
+	{ "format_resource", "{comment $0{hilight $1}($2)$4$3}", 5, { 0, 0, 0, 0, 0 } },
 	{ "format_resource_show", "($0)", 1, { 0 } },
 	{ "format_resource_status", ": $0", 1, { 0 } },
 	{ "format_subscription", "(subscription: $0)", 1, { 0 } },
+	{ "format_pgp_keyid", "(pgp: $0)", 1, { 0 } },
 
 	/* ---- */
 	{ NULL, "Roster", 0, { 0 } },

@@ -65,7 +65,7 @@ get_resources(XMPP_SERVER_REC *server, GSList *list)
 	GSList *tmp;
 	GString *resources;
 	XMPP_ROSTER_RESOURCE_REC *resource;
-	char *show, *status, *status_str, *priority, *text;
+	char *show, *status, *status_str, *priority, *text, *pgp_keyid;
 
 	if (list == NULL)
 		return NULL;
@@ -82,9 +82,12 @@ get_resources(XMPP_SERVER_REC *server, GSList *list)
 		        XMPPTXT_FORMAT_RESOURCE_STATUS, status_str);
 		g_free(status_str);
 		priority = g_strdup_printf("%d", resource->priority);
+		pgp_keyid = !resource->pgp_keyid ? NULL : \
+		    format_get_text(MODULE_NAME, NULL, server, NULL,
+		        XMPPTXT_FORMAT_PGP_KEYID, resource->pgp_keyid);
 		text = format_get_text(MODULE_NAME, NULL, server, NULL,
 		    XMPPTXT_FORMAT_RESOURCE, show, resource->name, priority,
-		    status);
+		    status, pgp_keyid);
 		g_free(show);
 		g_free(status);
 		g_free(priority);
@@ -144,7 +147,7 @@ show_begin_of_roster(XMPP_SERVER_REC *server)
 	priority = g_strdup_printf("%d", server->priority);
 	text = format_get_text(MODULE_NAME, NULL, server, NULL,
 	    XMPPTXT_FORMAT_RESOURCE, show,  server->resource, priority,
-	    status);
+	    status, settings_get_str("xmpp_pgp"));
 	g_free(show);
 	g_free(status);
 	g_free(priority);
