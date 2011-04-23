@@ -61,6 +61,7 @@ send_message(SERVER_REC *server, const char *target, const char *msg,
 {
 	LmMessage *lmsg;
 	char *str, *recoded;
+	char *encrypt_to = NULL;
 
 	if (!IS_XMPP_SERVER(server))
 		return;
@@ -71,7 +72,18 @@ send_message(SERVER_REC *server, const char *target, const char *msg,
 		lmsg = lm_message_new_with_sub_type(recoded,
 		    LM_MESSAGE_TYPE_MESSAGE, LM_MESSAGE_SUB_TYPE_GROUPCHAT);
 	} else {
+		XMPP_ROSTER_USER_REC *user;
 		str = rosters_resolve_name(XMPP_SERVER(server), target);
+		user = rosters_find_user(((XMPP_SERVER_REC*)server)->roster, str, \
+			NULL, NULL);
+		if(user) {
+			XMPP_ROSTER_RESOURCE_REC *res;
+			res = rosters_find_resource(user->resources, \
+				xmpp_extract_resource(str));
+			if(res && res->pgp_encrypt) {
+				encrypt_to = res->pgp_keyid;
+			}
+		}
 		recoded = xmpp_recode_out(str != NULL ? str : target);
 		g_free(str);
 		lmsg = lm_message_new_with_sub_type(recoded,
@@ -82,6 +94,31 @@ send_message(SERVER_REC *server, const char *target, const char *msg,
 	str = recode_in(server, msg, target);
 	recoded = xmpp_recode_out(str);
 	g_free(str);
+
+	if(encrypt_to) {
+		LmMessageNode *x;
+		char *encrypted;
+		char switches[sizeof("-aesR 00000000")] = "-ae";
+		if(settings_get_str("xmpp_pgp")) strcat(switches, "s");
+		strcat(switches, "R ");
+		strcat(switches, encrypt_to);
+		encrypted = call_gpg(switches, recoded, NULL, 0);
+
+		x = lm_message_node_add_child(lmsg->node, "x", encrypted);
+		lm_message_node_set_attribute(x, "xmlns", "jabber:x:encrypted");
+
+		free(encrypted);
+
+		g_free(recoded);
+		recoded = g_strdup("[This message is encrypted.]");
+	} else if(settings_get_str("xmpp_pgp")) {
+		LmMessageNode *x;
+		char *msigned = call_gpg("-ab", recoded, NULL, 0);
+		x = lm_message_node_add_child(lmsg->node, "x", msigned);
+		lm_message_node_set_attribute(x, "xmlns", "jabber:x:signed");
+		free(msigned);
+	}
+
 	lm_message_node_add_child(lmsg->node, "body", recoded);
 	g_free(recoded);
 	signal_emit("xmpp send message", 2, server, lmsg);
