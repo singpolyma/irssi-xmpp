@@ -534,6 +534,32 @@ cmd_me(const char *data, XMPP_SERVER_REC *server, WI_ITEM_REC *item)
 	g_free(recoded);
 }
 
+/* SYNTAX: XMPPPGP <on|off|KEYID> */
+static void
+cmd_xmpppgp(const char *data, XMPP_SERVER_REC *server, WI_ITEM_REC *item)
+{
+	if(IS_QUERY(item)) {
+		XMPP_ROSTER_USER_REC *user = rosters_find_user(server->roster, \
+			QUERY(item)->name, NULL, NULL);
+		XMPP_ROSTER_RESOURCE_REC *res;
+		if(!user) goto error;
+		res = rosters_find_resource(user->resources, \
+			xmpp_extract_resource(QUERY(item)->name));
+		if(!res) goto error;
+
+		if(res->pgp_keyid && strcmp(data, "on") == 0) {
+			res->pgp_encrypt = 1;
+		} else if(strcmp(data, "off") == 0) {
+			res->pgp_encrypt = 0;
+		} else {
+			res->pgp_keyid = malloc(9);
+			strcpy(res->pgp_keyid, data);
+		}
+	}
+error:
+	return;
+}
+
 char *
 xmpp_get_dest(const char *cmd_dest, XMPP_SERVER_REC *server, WI_ITEM_REC *item)
 {
@@ -579,6 +605,7 @@ xmpp_commands_init(void)
 	command_bind_xmpp("presence unsubscribe", NULL,
 	    (SIGNAL_FUNC)cmd_presence_unsubscribe);
 	command_bind_xmpp("me", NULL, (SIGNAL_FUNC)cmd_me);
+	command_bind_xmpp("xmpppgp", NULL, (SIGNAL_FUNC)cmd_xmpppgp);
 	settings_add_str("xmpp", "xmpp_default_away_mode", "away");
 }
 
@@ -603,4 +630,5 @@ xmpp_commands_deinit(void)
 	command_unbind("presence unsubscribe",
 	    (SIGNAL_FUNC)cmd_presence_unsubscribe);
 	command_unbind("me", (SIGNAL_FUNC)cmd_me);
+	command_unbind("xmpppgp", (SIGNAL_FUNC)cmd_xmpppgp);
 }
