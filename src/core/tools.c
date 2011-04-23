@@ -121,7 +121,11 @@ char *call_gpg(char *switches, char *input, char *input2, \
 		strcat(output, buf2);
 	}
 
-	pclose(cstream); /* TODO: check exit code */
+	if(pclose(cstream) == 512) { /* TODO: more check exit code */
+		g_free(pgp_passwd);
+		pgp_passwd = NULL;
+		output = call_gpg(switches, input, input2, get_stderr, snip_data);
+	}
 
 	close(tmp_fd);
 	free(tmp_path);
