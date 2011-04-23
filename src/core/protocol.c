@@ -63,10 +63,12 @@ sig_set_presence(XMPP_SERVER_REC *server, const int show, const char *status,
 		LmMessageNode *x;
 		char *signature = call_gpg("-ab", str, NULL, 0, 1);
 
-		x = lm_message_node_add_child(lmsg->node, "x", signature);
-		lm_message_node_set_attribute(x, "xmlns", "jabber:x:signed");
+		if(signature) {
+			x = lm_message_node_add_child(lmsg->node, "x", signature);
+			lm_message_node_set_attribute(x, "xmlns", "jabber:x:signed");
 
-		free(signature);
+			free(signature);
+		}
 	}
 
 	g_free(str);
