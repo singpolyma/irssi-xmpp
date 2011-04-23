@@ -2,7 +2,8 @@
 #define __TOOLS_H
 
 __BEGIN_DECLS
-char *call_gpg(char *switches, char *input, char *input2, int in_data);
+char *call_gpg(char *switches, char *input, char *input2, \
+               int get_stderr, int snip_data);
 
 char	*xmpp_recode_out(const char *);
 char	*xmpp_recode_in(const char *);

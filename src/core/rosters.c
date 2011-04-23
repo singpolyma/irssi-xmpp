@@ -514,7 +514,7 @@ sig_recv_presence(XMPP_SERVER_REC *server, LmMessage *lmsg, const int type,
 			strcat(send_to_gpg, signature->value);
 			strcat(send_to_gpg, "----- END PGP SIGNATURE-----\n");
 
-			from_gpg = call_gpg("--verify", send_to_gpg, send_status, 1);
+			from_gpg = call_gpg("--verify", send_to_gpg, send_status, 1, 0);
 			free(send_to_gpg);
 
 			/* If there is a good signature, grab the key ID */

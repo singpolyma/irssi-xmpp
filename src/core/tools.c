@@ -33,8 +33,9 @@
 
 static const char *utf8_charset = "UTF-8";
 
-char *call_gpg(char *switches, char *input, char *input2, int in_data) {
-	int pipefd[2], tmp_fd, tmp2_fd = 0;
+char *call_gpg(char *switches, char *input, char *input2, \
+               int get_stderr, int snip_data) {
+	int pipefd[2], tmp_fd, tmp2_fd = 0, in_data = !snip_data;
 	FILE *cstream;
 	char *cmd, *tmp_path, *tmp2_path = NULL, *output = NULL;
 	size_t output_size = 0;
@@ -65,7 +66,8 @@ char *call_gpg(char *switches, char *input, char *input2, int in_data) {
 		if(write(tmp2_fd, input2, strlen(input2)) < 0) goto pgp_error;
 	}
 
-	cmd = malloc(sizeof("gpg -u '' --passphrase-fd '' -qo - --batch --no-tty '' '' 2>&1") \
+	cmd = malloc(sizeof("gpg -u '' --passphrase-fd '' -qo - --batch " \
+	              "--no-tty '' '' 2>/dev/null") \
 	              +strlen(switches)+8+strlen(tmp_path)+ \
 	              (tmp2_path ? strlen(tmp2_path) : 0));
 	if(keyid) {
@@ -84,7 +86,11 @@ char *call_gpg(char *switches, char *input, char *input2, int in_data) {
 		strcat(cmd, "'");
 	}
 
-	strcat(cmd, " 2>&1");
+	if(get_stderr) {
+		strcat(cmd, " 2>&1");
+	} else {
+		strcat(cmd, " 2>/dev/null");
+	}
 
 	fflush(NULL);
 	cstream = popen(cmd, "r");
@@ -104,6 +110,15 @@ char *call_gpg(char *switches, char *input, char *input2, int in_data) {
 		} else if(in_data) {
 			strcpy(buf2, buf);
 		}
+	}
+
+	/* Get last line if not snipping */
+	if(!snip_data && strlen(buf2) > 0) {
+		output = realloc(output, output_size+strlen(buf2)+1);
+		if(!output) goto pgp_error;
+		if(output_size < 1) output[0] = '\0';
+		output_size += strlen(buf2);
+		strcat(output, buf2);
 	}
 
 	pclose(cstream); /* TODO: check exit code */

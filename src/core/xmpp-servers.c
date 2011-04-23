@@ -102,7 +102,7 @@ send_message(SERVER_REC *server, const char *target, const char *msg,
 		if(settings_get_str("xmpp_pgp")) strcat(switches, "s");
 		strcat(switches, "R ");
 		strcat(switches, encrypt_to);
-		encrypted = call_gpg(switches, recoded, NULL, 0);
+		encrypted = call_gpg(switches, recoded, NULL, 0, 1);
 
 		x = lm_message_node_add_child(lmsg->node, "x", encrypted);
 		lm_message_node_set_attribute(x, "xmlns", "jabber:x:encrypted");
@@ -113,7 +113,7 @@ send_message(SERVER_REC *server, const char *target, const char *msg,
 		recoded = g_strdup("[This message is encrypted.]");
 	} else if(settings_get_str("xmpp_pgp")) {
 		LmMessageNode *x;
-		char *msigned = call_gpg("-ab", recoded, NULL, 0);
+		char *msigned = call_gpg("-ab", recoded, NULL, 0, 1);
 		x = lm_message_node_add_child(lmsg->node, "x", msigned);
 		lm_message_node_set_attribute(x, "xmlns", "jabber:x:signed");
 		free(msigned);
