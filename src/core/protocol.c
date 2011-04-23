@@ -89,7 +89,7 @@ static void
 sig_recv_message(XMPP_SERVER_REC *server, LmMessage *lmsg, const int type,
     const char *id, const char *from, const char *to)
 {
-	LmMessageNode *node;
+	LmMessageNode *node, *encrypted;
 	char *str, *subject;
 	
 	if ((type != LM_MESSAGE_SUB_TYPE_NOT_SET
@@ -106,9 +106,38 @@ sig_recv_message(XMPP_SERVER_REC *server, LmMessage *lmsg, const int type,
 		signal_emit("message private", 4, server, subject, from, from);
 		g_free(subject);
 	}
-	node = lm_message_node_get_child(lmsg->node, "body");
-	if (node != NULL && node->value != NULL && *node->value != '\0') {
-		str = xmpp_recode_in(node->value);
+
+	str = NULL;
+	encrypted = lm_find_node(lmsg->node, "x", "xmlns", "jabber:x:encrypted");
+	if(encrypted && encrypted->value) {
+		/* TODO: indicate the message was encrypted */
+		/* TODO: verify signatures */
+		char *send_to_gpg = malloc(sizeof( \
+			"-----BEGIN PGP MESSAGE-----\n\n" \
+			"-----END PGP MESSAGE-----\n")+ \
+			strlen(encrypted->value)+1 \
+		);
+		char *from_gpg;
+
+		send_to_gpg[0] = '\0';
+		strcat(send_to_gpg, "-----BEGIN PGP MESSAGE-----\n\n");
+		strcat(send_to_gpg, encrypted->value);
+		strcat(send_to_gpg, "-----END PGP MESSAGE-----\n");
+
+		from_gpg = call_gpg("-d", send_to_gpg, NULL, 0, 0);
+		if(from_gpg) {
+			str = xmpp_recode_in(from_gpg);
+			free(from_gpg);
+		}
+
+		free(send_to_gpg);
+	} else {
+		node = lm_message_node_get_child(lmsg->node, "body");
+		if (node != NULL && node->value != NULL && *node->value != '\0') {
+			str = xmpp_recode_in(node->value);
+		}
+	}
+	if(str) {
 		if (g_ascii_strncasecmp(str, "/me ", 4) == 0)
 			signal_emit("message xmpp action", 5,
 			    server, str+4, from, from,
