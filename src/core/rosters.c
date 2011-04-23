@@ -138,6 +138,7 @@ create_resource(const char *name)
 	resource->status = NULL;
 	resource->composing_id = NULL;
 	resource->pgp_keyid = NULL;
+	resource->pgp_encrypt = 0;
 	return resource;
 }
 
@@ -517,7 +518,7 @@ sig_recv_presence(XMPP_SERVER_REC *server, LmMessage *lmsg, const int type,
 			free(send_to_gpg);
 
 			/* If there is a good signature, grab the key ID */
-			if(strstr(from_gpg, "Good signature from")) {
+			if(from_gpg && strstr(from_gpg, "Good signature from")) {
 				char *s = strstr(from_gpg, "key ID ");
 				if(s) {
 					pgp_keyid = malloc(sizeof(*pgp_keyid)*9);
@@ -525,7 +526,7 @@ sig_recv_presence(XMPP_SERVER_REC *server, LmMessage *lmsg, const int type,
 					pgp_keyid[8] = '\0';
 				}
 			}
-			free(from_gpg);
+			if(from_gpg) free(from_gpg);
 		}
 		update_user_presence(server, from,
 		    node_show != NULL ? node_show->value : NULL, status,
