@@ -43,7 +43,8 @@ char *call_gpg(char *switches, char *input, char *input2, \
 	char buf[100], buf2[100] = "";
 	const char *keyid = settings_get_str("xmpp_pgp");
 
-	if(keyid) { /* If no keyID, then we don't need a password */
+	/* If no keyID, then we don't need a password */
+	if(keyid && !settings_get_str("xmpp_pgp_agent")) {
 		if(pipe(pipefd)) goto pgp_error;
 		if(!pgp_passwd) pgp_passwd = get_password("OpenPGP Password:");
 		if(!pgp_passwd) goto pgp_error;
@@ -66,7 +67,12 @@ char *call_gpg(char *switches, char *input, char *input2, \
 	              +strlen(switches)+8+ \
 	              (tmp2_path ? strlen(tmp2_path) : 0));
 	if(keyid) {
-		sprintf(cmd, "gpg -u '%s' --passphrase-fd '%d' ", keyid, pipefd[0]);
+		strcpy(cmd, "gpg -u '");
+		strcat(cmd, keyid);
+		strcat(cmd, "' ");
+		if(!settings_get_str("xmpp_pgp_agent")) {
+			sprintf(cmd+strlen(cmd), "--passphrase-fd '%d' ", pipefd[0]);
+		}
 	} else {
 		strcpy(cmd, "gpg ");
 	}
