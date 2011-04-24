@@ -133,7 +133,7 @@ show_user(XMPP_SERVER_REC *server, XMPP_ROSTER_USER_REC *user)
 static void
 show_begin_of_roster(XMPP_SERVER_REC *server)
 {
-	char *show, *status, *priority, *text, *resources;
+	char *show, *status, *priority, *text, *resources, *pgp_keyid;
 
 	g_return_if_fail(IS_XMPP_SERVER(server));
 	show = (server->show == XMPP_PRESENCE_AVAILABLE) ? NULL :
@@ -145,9 +145,12 @@ show_begin_of_roster(XMPP_SERVER_REC *server)
 	    format_get_text(MODULE_NAME, NULL, server, NULL,
 	        XMPPTXT_FORMAT_RESOURCE_STATUS, server->away_reason);
 	priority = g_strdup_printf("%d", server->priority);
+	pgp_keyid = !settings_get_str("xmpp_pgp") ? NULL : \
+	    format_get_text(MODULE_NAME, NULL, server, NULL,
+	        XMPPTXT_FORMAT_PGP_KEYID, settings_get_str("xmpp_pgp"));
 	text = format_get_text(MODULE_NAME, NULL, server, NULL,
 	    XMPPTXT_FORMAT_RESOURCE, show,  server->resource, priority,
-	    status, settings_get_str("xmpp_pgp"));
+	    status, pgp_keyid);
 	g_free(show);
 	g_free(status);
 	g_free(priority);
