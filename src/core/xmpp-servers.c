@@ -74,14 +74,16 @@ send_message(SERVER_REC *server, const char *target, const char *msg,
 	} else {
 		XMPP_ROSTER_USER_REC *user;
 		str = rosters_resolve_name(XMPP_SERVER(server), target);
-		user = rosters_find_user(((XMPP_SERVER_REC*)server)->roster, str, \
-			NULL, NULL);
-		if(user) {
-			XMPP_ROSTER_RESOURCE_REC *res;
-			res = rosters_find_resource(user->resources, \
-				xmpp_extract_resource(str));
-			if(res && res->pgp_encrypt) {
-				encrypt_to = res->pgp_keyid;
+		if(str) {
+			user = rosters_find_user(((XMPP_SERVER_REC*)server)->roster, \
+			                         str, NULL, NULL);
+			if(user) {
+				XMPP_ROSTER_RESOURCE_REC *res;
+				res = rosters_find_resource(user->resources, \
+					xmpp_extract_resource(str));
+				if(res && res->pgp_encrypt) {
+					encrypt_to = res->pgp_keyid;
+				}
 			}
 		}
 		recoded = xmpp_recode_out(str != NULL ? str : target);

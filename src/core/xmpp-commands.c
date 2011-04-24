@@ -538,7 +538,7 @@ cmd_me(const char *data, XMPP_SERVER_REC *server, WI_ITEM_REC *item)
 static void
 cmd_xmpppgp(const char *data, XMPP_SERVER_REC *server, WI_ITEM_REC *item)
 {
-	if(IS_QUERY(item)) {
+	if(IS_QUERY(item) && QUERY(item)->name) {
 		XMPP_ROSTER_USER_REC *user = rosters_find_user(server->roster, \
 			QUERY(item)->name, NULL, NULL);
 		XMPP_ROSTER_RESOURCE_REC *res;
