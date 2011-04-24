@@ -66,8 +66,8 @@ char *call_gpg(char *switches, char *input, char *input2, \
 		if(write(tmp2_fd, input2, strlen(input2)) < 0) goto pgp_error;
 	}
 
-	cmd = malloc(sizeof("gpg -u '' --passphrase-fd '' -qo - --batch " \
-	              "--no-tty '' '' 2>/dev/null") \
+	cmd = malloc(sizeof("gpg -u '' --passphrase-fd '' --trust-model always" \
+	              " -qo - --batch --no-tty '' '' 2>/dev/null") \
 	              +strlen(switches)+8+strlen(tmp_path)+ \
 	              (tmp2_path ? strlen(tmp2_path) : 0));
 	if(keyid) {
@@ -76,7 +76,7 @@ char *call_gpg(char *switches, char *input, char *input2, \
 		strcpy(cmd, "gpg ");
 	}
 	strcat(cmd, switches);
-	strcat(cmd, " -qo - --batch --no-tty '");
+	strcat(cmd, " --trust-model always -qo - --batch --no-tty '");
 	strcat(cmd, tmp_path);
 	strcat(cmd, "' ");
 
