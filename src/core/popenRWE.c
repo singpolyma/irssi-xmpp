@@ -88,6 +88,8 @@ int pcloseRWE(int pid, int *rwepipe) {
 	close(rwepipe[0]);
 	close(rwepipe[1]);
 	close(rwepipe[2]);
-	rc = waitpid(pid, &status, 0);
+	do {
+		rc = waitpid(pid, &status, 0);
+	} while (rc != 0 && ! WIFEXITED(status));
 	return status;
 }

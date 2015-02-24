@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include <string.h>
+#include <sys/wait.h>
 
 #include "module.h"
 #include "recode.h"
@@ -34,8 +35,8 @@
 
 static const char *utf8_charset = "UTF-8";
 
-char *call_gpg(char *switches, char *input, char *input2, \
-               int get_stderr, int snip_data) {
+char *call_gpg_round(char *switches, char *input, char *input2, \
+               int get_stderr, int snip_data, unsigned round) {
 	int pipefd[2], rwepipe[3], childpid, tmp2_fd = 0, in_data = !snip_data;
 	FILE* cstream;
 	char *cmd, *tmp2_path = NULL, *output = NULL;
@@ -124,10 +125,15 @@ char *call_gpg(char *switches, char *input, char *input2, \
 		strcat(output, buf2);
 	}
 
-	if(pcloseRWE(childpid, rwepipe) == 512) { /* TODO: more check exit code */
+	// http://www.gnu-darwin.org/www001/src/ports/security/libgpg-error/work/libgpg-error-1.5/src/err-codes.h.in
+	// 11	GPG_ERR_BAD_PASSPHRASE		Bad passphrase
+	// 31	GPG_ERR_INV_PASSPHRASE		Invalid passphrase
+	int exit_status = WEXITSTATUS(pcloseRWE(childpid, rwepipe));
+	if(round > 0 && (exit_status == 11 || exit_status == 31)) {
 		g_free(pgp_passwd);
 		pgp_passwd = NULL;
-		output = call_gpg(switches, input, input2, get_stderr, snip_data);
+		output = call_gpg_round(switches, input, input2, get_stderr,
+					snip_data, round--);
 	}
 
 	if(tmp2_fd)   close(tmp2_fd);
@@ -138,6 +144,13 @@ char *call_gpg(char *switches, char *input, char *input2, \
 	return output;
 pgp_error:
 	return NULL;
+}
+
+
+char *call_gpg(char *switches, char *input, char *input2, \
+               int get_stderr, int snip_data, unsigned round) {
+	return call_gpg_round(switches, input, input2, get_stderr,
+			      snip_data, 3);
 }
 
 
