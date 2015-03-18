@@ -39,7 +39,7 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
                int get_stderr, int snip_data, unsigned round) {
 	int pipefd[2], rwepipe[3], childpid, tmp2_fd = 0, in_data = !snip_data;
 	FILE* cstream;
-	char *cmd, *tmp2_path = NULL, *output = NULL;
+	char *cmd, *output = NULL;
 	size_t output_size = 0;
 	char buf[100], buf2[100] = "";
 	const char *keyid = settings_get_str("xmpp_pgp");
@@ -55,18 +55,17 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 	}
 
 	if(input2) { /* NOTE for security it might be better if this were a named pipe */
-		if(!(tmp2_path = tempnam(NULL, "irssi-xmpp-gpg"))) goto pgp_error;
-		if((tmp2_fd = open(tmp2_path, O_WRONLY|O_CREAT|O_EXCL, \
-			 S_IRUSR|S_IWUSR)) < 0)
-			goto pgp_error;
-
+		if((tmp2_fd = mkstemp("irssi-xmpp-gpgXXXXXX")) == -1) goto pgp_error;
 		if(write(tmp2_fd, input2, strlen(input2)) < 0) goto pgp_error;
 	}
 
-	cmd = malloc(sizeof("gpg -u '' --passphrase-fd '' --trust-model always" \
-	              " -qo - --batch --no-tty - ''") \
-	              +strlen(switches)+8+ \
-	              (tmp2_path ? strlen(tmp2_path) : 0));
+	cmd = malloc(sizeof("gpg --enable-special-filenames -u ''" \
+	             "--passphrase-fd '' --trust-model always" \
+	             " -qo - --batch --no-tty - '' -&") \
+	             +1+strlen(switches)+5+ /* 5 is for passphrase-fd */ \
+	             (keyid ? strlen(keyid) : 0)+ \
+	             (keyid ? strlen(keyid) : 0)+ \
+	             (tmp2_fd ? 5 : 0));
 	if(keyid) {
 		strcpy(cmd, "gpg -u '");
 		strcat(cmd, keyid);
@@ -78,12 +77,11 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 		strcpy(cmd, "gpg ");
 	}
 	strcat(cmd, switches);
-	strcat(cmd, " --trust-model always -qo - --batch --no-tty - ");
+	strcat(cmd, " --enable-special-filenames --trust-model always -qo -" \
+	            " --batch --no-tty - ");
 
-	if(tmp2_path) {
-		strcat(cmd, "'");
-		strcat(cmd, tmp2_path);
-		strcat(cmd, "'");
+	if(tmp2_fd) {
+		sprintf(cmd+strlen(cmd), "-&%d", tmp2_fd);
 	}
 
 	fflush(NULL);
@@ -138,7 +136,6 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 
 done:
 	if(tmp2_fd)   close(tmp2_fd);
-	if(tmp2_path) free(tmp2_path);
 	if(keyid)     close(pipefd[0]);
 	free(cmd);
 
