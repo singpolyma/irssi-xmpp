@@ -43,14 +43,15 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 	size_t output_size = 0;
 	char buf[100], buf2[100] = "";
 	const char *keyid = settings_get_str("xmpp_pgp");
+	int send_password = keyid && !settings_get_str("xmpp_pgp_agent");
 
 	/* If no keyID, then we don't need a password */
-	if(keyid && !settings_get_str("xmpp_pgp_agent")) {
+	if(send_password) {
 		if(pipe(pipefd)) goto pgp_error;
 		if(!pgp_passwd) pgp_passwd = get_password("OpenPGP Password:");
 		if(!pgp_passwd) goto pgp_error;
 
-		if(write(pipefd[1], pgp_passwd, strlen(pgp_passwd)) < 1) goto pgp_error;
+		if(write(pipefd[1], pgp_passwd, strlen(pgp_passwd)) < 0) goto pgp_error;
 		if(close(pipefd[1])) goto pgp_error;
 	}
 
@@ -136,7 +137,7 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 
 done:
 	if(tmp2_fd)   close(tmp2_fd);
-	if(keyid)     close(pipefd[0]);
+	if(send_password)  close(pipefd[0]);
 	free(cmd);
 
 	return output;
