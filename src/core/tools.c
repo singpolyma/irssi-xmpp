@@ -152,7 +152,7 @@ pgp_error:
 char *call_gpg(char *switches, char *input, char *input2, \
                int get_stderr, int snip_data, unsigned round) {
 	return call_gpg_round(switches, input, input2, get_stderr,
-			      snip_data, 3);
+	                      snip_data, 3);
 }
 
 
