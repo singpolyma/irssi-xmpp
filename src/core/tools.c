@@ -37,7 +37,7 @@ static const char *utf8_charset = "UTF-8";
 
 char *call_gpg_round(char *switches, char *input, char *input2, \
                int get_stderr, int snip_data, unsigned round) {
-	int pipefd[2], pipefd2[2], rwepipe[3], childpid, in_data = !snip_data;
+	int pass_pipe[2], input2_pipe[2], rwepipe[3], childpid, in_data = !snip_data;
 	FILE* cstream;
 	char *cmd, *output = NULL;
 	size_t output_size = 0;
@@ -47,18 +47,18 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 
 	/* If no keyID, then we don't need a password */
 	if(send_password) {
-		if(pipe(pipefd)) goto pgp_error;
+		if(pipe(pass_pipe)) goto pgp_error;
 		if(!pgp_passwd) pgp_passwd = get_password("OpenPGP Password:");
 		if(!pgp_passwd) goto pgp_error;
 
-		if(write(pipefd[1], pgp_passwd, strlen(pgp_passwd)) < 0) goto pgp_error;
-		if(close(pipefd[1])) goto pgp_error;
+		if(write(pass_pipe[1], pgp_passwd, strlen(pgp_passwd)) < 0) goto pgp_error;
+		if(close(pass_pipe[1])) goto pgp_error;
 	}
 
 	if(input2) {
-		if(pipe(pipefd2)) goto pgp_error;
-		if(write(pipefd2[1], input2, strlen(input2)) < 0) goto pgp_error;
-		if(close(pipefd2[1])) goto pgp_error;
+		if(pipe(input2_pipe)) goto pgp_error;
+		if(write(input2_pipe[1], input2, strlen(input2)) < 0) goto pgp_error;
+		if(close(input2_pipe[1])) goto pgp_error;
 	}
 
 	cmd = malloc(sizeof("gpg --enable-special-filenames -u ''" \
@@ -72,8 +72,8 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 		strcpy(cmd, "gpg -u '");
 		strcat(cmd, keyid);
 		strcat(cmd, "' ");
-		if(!settings_get_str("xmpp_pgp_agent")) {
-			sprintf(cmd+strlen(cmd), "--passphrase-fd '%d' ", pipefd[0]);
+		if(send_password) {
+			sprintf(cmd+strlen(cmd), "--passphrase-fd '%d' ", pass_pipe[0]);
 		}
 	} else {
 		strcpy(cmd, "gpg ");
@@ -83,7 +83,7 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 	            " --batch --no-tty - ");
 
 	if(input2) {
-		sprintf(cmd+strlen(cmd), "-&%d", pipefd2[0]);
+		sprintf(cmd+strlen(cmd), "-&%d", input2_pipe[0]);
 	}
 
 	fflush(NULL);
@@ -137,8 +137,8 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 	}
 
 done:
-	if(send_password)  close(pipefd[0]);
-	if(input2)         close(pipefd2[0]);
+	if(send_password)  close(pass_pipe[0]);
+	if(input2)         close(input2_pipe[0]);
 	free(cmd);
 
 	return output;
