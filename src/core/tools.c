@@ -136,6 +136,7 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 					snip_data, round--);
 	}
 
+done:
 	if(tmp2_fd)   close(tmp2_fd);
 	if(tmp2_path) free(tmp2_path);
 	if(keyid)     close(pipefd[0]);
@@ -143,7 +144,8 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 
 	return output;
 pgp_error:
-	return NULL;
+	output = NULL;
+	goto done;
 }
 
 
