@@ -37,7 +37,7 @@ static const char *utf8_charset = "UTF-8";
 
 char *call_gpg_round(char *switches, char *input, char *input2, \
                int get_stderr, int snip_data, unsigned round) {
-	int pipefd[2], rwepipe[3], childpid, tmp2_fd = 0, in_data = !snip_data;
+	int pipefd[2], pipefd2[2], rwepipe[3], childpid, in_data = !snip_data;
 	FILE* cstream;
 	char *cmd, *output = NULL;
 	size_t output_size = 0;
@@ -55,18 +55,19 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 		if(close(pipefd[1])) goto pgp_error;
 	}
 
-	if(input2) { /* NOTE for security it might be better if this were a named pipe */
-		if((tmp2_fd = mkstemp("irssi-xmpp-gpgXXXXXX")) == -1) goto pgp_error;
-		if(write(tmp2_fd, input2, strlen(input2)) < 0) goto pgp_error;
+	if(input2) {
+		if(pipe(pipefd2)) goto pgp_error;
+		if(write(pipefd2[1], input2, strlen(input2)) < 0) goto pgp_error;
+		if(close(pipefd2[1])) goto pgp_error;
 	}
 
 	cmd = malloc(sizeof("gpg --enable-special-filenames -u ''" \
 	             "--passphrase-fd '' --trust-model always" \
 	             " -qo - --batch --no-tty - '' -&") \
-	             +1+strlen(switches)+5+ /* 5 is for passphrase-fd */ \
+	             +1+strlen(switches)+ \
 	             (keyid ? strlen(keyid) : 0)+ \
-	             (keyid ? strlen(keyid) : 0)+ \
-	             (tmp2_fd ? 5 : 0));
+	             (send_password ? 5 : 0)+ \
+	             (input2 ? 5 : 0));
 	if(keyid) {
 		strcpy(cmd, "gpg -u '");
 		strcat(cmd, keyid);
@@ -81,8 +82,8 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 	strcat(cmd, " --enable-special-filenames --trust-model always -qo -" \
 	            " --batch --no-tty - ");
 
-	if(tmp2_fd) {
-		sprintf(cmd+strlen(cmd), "-&%d", tmp2_fd);
+	if(input2) {
+		sprintf(cmd+strlen(cmd), "-&%d", pipefd2[0]);
 	}
 
 	fflush(NULL);
@@ -136,8 +137,8 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 	}
 
 done:
-	if(tmp2_fd)   close(tmp2_fd);
 	if(send_password)  close(pipefd[0]);
+	if(input2)         close(pipefd2[0]);
 	free(cmd);
 
 	return output;
