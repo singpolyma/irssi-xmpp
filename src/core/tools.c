@@ -63,7 +63,7 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 
 	cmd = malloc(sizeof("gpg --enable-special-filenames -u ''" \
 	             "--passphrase-fd '' --trust-model always" \
-	             " -qo - --batch --no-tty - '' -&") \
+	             " -qo - --batch --no-tty - '' '-&'") \
 	             +1+strlen(switches)+ \
 	             (keyid ? strlen(keyid) : 0)+ \
 	             (send_password ? 5 : 0)+ \
@@ -83,7 +83,7 @@ char *call_gpg_round(char *switches, char *input, char *input2, \
 	            " --batch --no-tty - ");
 
 	if(input2) {
-		sprintf(cmd+strlen(cmd), "-&%d", input2_pipe[0]);
+		sprintf(cmd+strlen(cmd), "'-&%d'", input2_pipe[0]);
 	}
 
 	fflush(NULL);
