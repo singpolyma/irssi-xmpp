@@ -542,16 +542,33 @@ cmd_xmpppgp(const char *data, XMPP_SERVER_REC *server, WI_ITEM_REC *item)
 		XMPP_ROSTER_USER_REC *user = rosters_find_user(server->roster, \
 			QUERY(item)->name, NULL, NULL);
 		XMPP_ROSTER_RESOURCE_REC *res;
-		if(!user) goto error;
+
+		if(!user) {
+			printtext_window(item->window, 1, "xmpppgp: user not found in roster");
+			goto error;
+		}
+
 		res = rosters_find_resource(user->resources, \
 			xmpp_extract_resource(QUERY(item)->name));
-		if(!res) goto error;
 
-		if(res->pgp_keyid && strcmp(data, "on") == 0) {
-			res->pgp_encrypt = 1;
+		if(!res) {
+			printtext_window(item->window, 1, "xmpppgp: user's resource not found in roster");
+			goto error;
+		}
+
+		if(strcmp(data, "on") == 0) {
+			if(res->pgp_keyid) {
+				printtext_window(item->window, 1, "xmpppgp: encryption enabled");
+				res->pgp_encrypt = 1;
+			} else {
+				printtext_window(item->window, 1, "xmpppgp: no keyid found for destination");
+				goto error;
+			}
 		} else if(strcmp(data, "off") == 0) {
+			printtext_window(item->window, 1, "xmpppgp: encryption disabled");
 			res->pgp_encrypt = 0;
 		} else {
+			printtext_window(item->window, 1, "xmpppgp: destination keyid set");
 			res->pgp_keyid = malloc(9);
 			strcpy(res->pgp_keyid, data);
 		}
