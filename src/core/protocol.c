@@ -22,6 +22,7 @@
 #include "xmpp-servers.h"
 #include "rosters-tools.h"
 #include "tools.h"
+#include "xep/disco.h"
 
 char *pgp_passwd = NULL;
 
@@ -62,6 +63,8 @@ sig_set_presence(XMPP_SERVER_REC *server, const int show, const char *status,
 	if((pgp_keyid = settings_get_str("xmpp_pgp"))) {
 		LmMessageNode *x;
 		char *signature = call_gpg("-ab", str, NULL, 0, 1);
+		disco_add_feature("jabber:x:signed");
+		disco_add_feature("jabber:x:encrypted");
 
 		if(signature) {
 			x = lm_message_node_add_child(lmsg->node, "x", signature);
