@@ -165,7 +165,7 @@ rosters_resolve_name(XMPP_SERVER_REC *server, const char *name)
 			/* if unspecified, use the highest resource */
 			if (user->resources != NULL) {
 				resource = user->resources->data;
-				if (resource->name != NULL)
+				if (resource->name != NULL && *resource->name)
 					return g_strconcat(user->jid, "/",
 					    resource->name, (void *)NULL);
 			}
