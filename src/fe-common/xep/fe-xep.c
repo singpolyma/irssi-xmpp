@@ -17,6 +17,7 @@
 
 #include "module.h"
 
+#include "fe-carbons.h"
 #include "fe-composing.h"
 #include "fe-delay.h"
 #include "fe-muc.h"
@@ -28,6 +29,7 @@
 void
 fe_xep_init(void)
 {
+	fe_carbons_init();
 	fe_composing_init();
 	fe_delay_init();
 	fe_muc_init();
@@ -40,6 +42,7 @@ fe_xep_init(void)
 void
 fe_xep_deinit(void)
 {
+	fe_carbons_deinit();
 	fe_composing_deinit();
 	fe_delay_deinit();
 	fe_muc_deinit();
