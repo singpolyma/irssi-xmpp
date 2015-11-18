@@ -94,9 +94,7 @@ sig_recv_message(XMPP_SERVER_REC *server, LmMessage *lmsg, const int type,
 {
 	LmMessageNode *node, *encrypted;
 	char *str, *subject;
-
-	from = rosters_resolve_name(server, from);
-
+	
 	if ((type != LM_MESSAGE_SUB_TYPE_NOT_SET
 	    && type != LM_MESSAGE_SUB_TYPE_HEADLINE
 	    && type != LM_MESSAGE_SUB_TYPE_NORMAL
