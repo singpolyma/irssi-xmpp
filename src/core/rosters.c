@@ -359,6 +359,7 @@ update_user_presence(XMPP_SERVER_REC *server, const char *full_jid,
 	new = own = FALSE;
 	jid = xmpp_strip_resource(full_jid);
 	res = xmpp_extract_resource(full_jid);
+	if(res == NULL) res = g_strdup("");
 	user = rosters_find_user(server->roster, jid, &group, NULL);
 	if (user == NULL) {
 		if (!(own = strcmp(jid, server->jid) == 0
