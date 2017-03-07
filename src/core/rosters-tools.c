@@ -166,8 +166,10 @@ rosters_resolve_name(XMPP_SERVER_REC *server, const char *name)
 			if (user->resources != NULL) {
 				resource = user->resources->data;
 				if (resource->name != NULL && *resource->name)
+				res = resource->name;
+				if (res != NULL && *res != '\0')
 					return g_strconcat(user->jid, "/",
-					    resource->name, (void *)NULL);
+					    res, (void *)NULL);
 			}
 			return g_strdup(user->jid);
 		}
